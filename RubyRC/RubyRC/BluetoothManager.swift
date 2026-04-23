@@ -13,23 +13,24 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
     CBPeripheralDelegate
 {
     @Published var isConnected = false
-    @Published var batteryLevel: Float32 = 0
+    @Published var rawSpeed: UInt32 = 0
 
     private var centralManager: CBCentralManager!
     private var targetPeripheral: CBPeripheral?
     private var peripheral: CBPeripheral?
-    private var clkForwardCharacteristic: CBCharacteristic?
-    private var clkBackwardCharacteristic: CBCharacteristic?
-    private var batLevelCharacteristic: CBCharacteristic?
-    private var resetCharacteristic: CBCharacteristic?
+    private var redLEDCharacteristic: CBCharacteristic?
+    private var johnsonBarCharacteristic: CBCharacteristic?
+    private var throttleCharacteristic: CBCharacteristic?
+    private var speedometerCharacteristic: CBCharacteristic?
+
 
     // 🔧 Replace with your peripheral UUID
-    private let targetUUID = UUID(uuidString: "807a35e5-60a1-4f95-8b68-9f8175d8e400")!
-    private let targetServiceUUID = CBUUID(string: "807a35e5-60a1-4f95-8b68-9f8175d8e400")
-    private let clkForwardUUID = CBUUID(string: "807a35e7-60a1-4f95-8b68-9f8175d8e400")
-    private let clkBackwardUUID = CBUUID(string: "807a35e8-60a1-4f95-8b68-9f8175d8e400")
-    private let resetUUID = CBUUID(string: "807a35e9-60a1-4f95-8b68-9f8175d8e400")
-    private let batLevelUUID = CBUUID(string: "807a35ea-60a1-4f95-8b68-9f8175d8e400")
+    private let targetUUID = UUID(uuidString: "19b10000-e8f2-537e-4f6c-d104768a1214")!
+    private let targetServiceUUID = CBUUID(string: "19b10000-e8f2-537e-4f6c-d104768a1214")
+    private let redLEDUUID = CBUUID(string: "19b10001-e8f2-537e-4f6c-d104768a1214")
+    private let johnsonBarUUID = CBUUID(string: "19b10002-e8f2-537e-4f6c-d104768a1214")
+    private let throttleUUID = CBUUID(string: "19b10003-e8f2-537e-4f6c-d104768a1214")
+    private let speedometerUUID = CBUUID(string: "19b10004-e8f2-537e-4f6c-d104768a1214")
     
     override init() {
         super.init()
@@ -80,8 +81,8 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
     func clkAdjust(direction : Bool) {
         guard
             let peripheral = peripheral,
-            let fwdCharacteristic = clkForwardCharacteristic,
-            let bwdCharacteristic = clkBackwardCharacteristic
+            let fwdCharacteristic = johnsonBarCharacteristic,
+            let bwdCharacteristic = redLEDCharacteristic
         else {
             print("Peripheral or characteristic not ready")
             return
@@ -96,7 +97,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
     func clkReset () {
         guard
             let peripheral = peripheral,
-            let characteristic = resetCharacteristic
+            let characteristic = throttleCharacteristic
         else {
             print("Peripheral or characteristic not ready")
             return
@@ -110,7 +111,23 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
 
 extension BluetoothManager {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
-        print("Bluetooth state:", central.state.rawValue)
+        switch central.state {
+        case .poweredOn:
+            print("Bluetooth ready")
+            scan() // 👈 start scan here
+
+        case .poweredOff:
+            print("Bluetooth is off")
+
+        case .unauthorized:
+            print("Bluetooth unauthorized")
+
+        case .unsupported:
+            print("Bluetooth unsupported")
+
+        default:
+            print("Bluetooth not ready: \(central.state.rawValue)")
+        }
     }
 
     func centralManager(
@@ -165,12 +182,12 @@ extension BluetoothManager {
 
         for characteristic in characteristics {
             print("Characteristic found: \(characteristic.uuid)")
-            if characteristic.uuid == clkForwardUUID {print("A"); clkForwardCharacteristic = characteristic}
-            else if characteristic.uuid == clkBackwardUUID {clkBackwardCharacteristic = characteristic}
-            else if characteristic.uuid == resetUUID {resetCharacteristic = characteristic}
-            else if characteristic.uuid == batLevelUUID {
-                batLevelCharacteristic = characteristic
-                if batLevelCharacteristic!.properties.contains(.notify) {
+            if characteristic.uuid == redLEDUUID {print("A"); redLEDCharacteristic = characteristic}
+            else if characteristic.uuid == johnsonBarUUID {johnsonBarCharacteristic = characteristic}
+            else if characteristic.uuid == throttleUUID {throttleCharacteristic = characteristic}
+            else if characteristic.uuid == speedometerUUID {
+                speedometerCharacteristic = characteristic
+                if speedometerCharacteristic!.properties.contains(.notify) {
                     print("Found notify characteristic")
                     
                     // Enable notifications
@@ -203,16 +220,17 @@ extension BluetoothManager {
         }
 
         guard let data = characteristic.value else { return }
-        
-        let floatValue = data.withUnsafeBytes { buffer in
-            buffer.load(as: Float32.self)
+//        print("Data count:", data.count)
+//        print("Expected:", MemoryLayout<Int32>.size)
+        if data.count == MemoryLayout<Int32>.size {
+            let intValue = data.withUnsafeBytes { buffer in
+                buffer.load(as: UInt32.self)
+            }
+            rawSpeed = intValue
         }
-        batteryLevel = floatValue
+
         
-//        let hexString = data.map { String(format: "%02X", $0) }.joined(separator: " ")
-//        print("Raw bytes (hex): \(hexString)")
-        
-        print("batteryLevel = \(batteryLevel)")
+//        print("batteryLevel = \(batteryLevel)")
         // Convert to something meaningful
 //        handleIncomingData(data)
     }
@@ -236,6 +254,7 @@ extension BluetoothManager {
         DispatchQueue.main.async {
             self.isConnected = false
         }
+        scan()
         print("🔌 Disconnected")
     }
 }
