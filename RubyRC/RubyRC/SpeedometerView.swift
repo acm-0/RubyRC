@@ -10,6 +10,7 @@ import SwiftUI
 
 struct SpeedometerView: View {
     var speed: UInt32 // Value from 0 to 60
+    @Binding var ledOn: Bool
     
     var body: some View {
         GeometryReader { geometry in
@@ -22,6 +23,17 @@ struct SpeedometerView: View {
                     .scaleEffect(0.4)
                     .position(x: gw * 0.499, y: gh * 0.502)
                 // 3. The Needle
+                Button {
+                    // Simply flip the boolean state
+                    ledOn.toggle()
+                } label: {Image("smallbutton")
+                        .resizable()
+                        .scaledToFit()
+                        .scaleEffect(0.1)
+                        .position(x: gw * 0.5, y: gh * 0.575)
+                        .shadow(color: ledOn ? .red : .clear, radius: 10)
+                }
+                .buttonStyle(.plain)
                 Image("needle")
                     .resizable()
                     .scaledToFit()
@@ -45,21 +57,21 @@ struct SpeedometerView: View {
                     .scaleEffect(0.01)
  //                   .frame(width: 4, height: 4)
                     .position(x: gw/2, y: gh/2)
-//                // 5. Digital Readout
-//                VStack {
-//                    Spacer()
-//                    Text("\(Int(speed))")
-//                        .font(.system(size: 40, weight: .bold, design: .monospaced))
-//                    Text("MPH")
-//                        .font(.caption)
-//                        .foregroundColor(.secondary)
-//                }
-//                .offset(y: 40)
             }
         }
     }
 }
 
 #Preview {
-    SpeedometerView(speed:20)
+    SpeedometerPreviewWrapper()
+}
+
+struct SpeedometerPreviewWrapper: View {
+    @State private var ledOn = false
+    
+    var body: some View {
+        SpeedometerView(speed: 30, ledOn: $ledOn)
+//            .frame(width: 300, height: 300)
+//            .background(Color.gray.opacity(0.2)) // helps see layout
+    }
 }

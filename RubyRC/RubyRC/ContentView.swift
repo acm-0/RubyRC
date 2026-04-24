@@ -9,11 +9,13 @@ import SwiftUI
 
 struct ContentView: View {
     @State var ascOn = false // asc stand for Automatic Speed Control
-    @State var help = false
+    @State var showHelp = false
     @State var emergencyStop = false
+    @State var gotoSettings = false
     @StateObject private var bluetoothManager = BluetoothManager()
     @State var throttlePosition: Double = -45
     @State var johnsonPosition: Double = 165
+    @State var redLedOn: Bool = false
 
 
     func RawSpeed2Speed(rawSpeed: UInt32) -> UInt32 {
@@ -61,16 +63,31 @@ struct ContentView: View {
 
 /* Help Switch */
                 Button {
-                    help.toggle()
+                    showHelp.toggle()
                 } label: {
                     Image("questionmark")
                         .resizable()
                         .scaledToFit()
                         .scaleEffect(0.5)
                         .position(x: gw * 0.3, y: gh * 0.0)
-                        .shadow(color: help ? .red : .blue, radius: 10)
+                        .shadow(color: showHelp ? .red : .blue, radius: 10)
                 }
                 .buttonStyle(.plain)
+/* Settings Switch */
+                GearView(isOn: $gotoSettings)
+                    .position(x: gw * 0.93, y: gh * 0.0)
+
+                
+//                Button {
+//                    gotoSettings.toggle()
+//                } label: {
+//                    Image("gear")
+//                        .resizable()
+//                        .scaledToFit()
+//                        .scaleEffect(0.4)
+//                        .position(x: gw * 0.93, y: gh * 0.0)
+////                        .shadow(color: .blue, radius: 0.1)
+//                }
 /* Emergency Stop Switch */
                 Button {
                     emergencyStop.toggle()
@@ -95,17 +112,27 @@ struct ContentView: View {
                 .buttonStyle(.plain)
 /* Speedometer */
                 SpeedometerView(
-                    speed: RawSpeed2Speed(rawSpeed: bluetoothManager.rawSpeed)
+                    speed: RawSpeed2Speed(rawSpeed: bluetoothManager.rawSpeed),
+                    ledOn: $redLedOn
                 )
-                //              SpeedometerView(speed:00)
-                //                   .scaleEffect(0.5)
                 .position(x: gw * 0.40, y: gh * 0.36)
+/* Throttle Lever */
                 ThrottleLever(currentAngle: $throttlePosition, minAngle: -45, maxAngle: 60)
                     .frame(width:300, height:300)                    .position(x: gw * 0.72, y: gh * 0.785)
-
+/* Johnson Lever */
                 JohnsonLever(currentAngle: $johnsonPosition)
                     .frame(width:300, height:300)                    .position(x: gw * 0.28, y: gh * 0.785)
             }  // ZStack
+            .onChange(of: redLedOn) {
+                let byteValue: UInt8 = redLedOn ? 1 : 0
+                bluetoothManager.RedLEDEnable(value: byteValue)
+            }
+/* Help Overlay */
+            .overlay {
+                if showHelp {
+                    HelpOverlay()
+                }
+            }
         }  // Geometry Reader
     }  // View
 }  // Struct

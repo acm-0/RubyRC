@@ -107,6 +107,20 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
                               for: characteristic,
                               type: .withResponse)
     }
+    
+    func RedLEDEnable (value: UInt8) {
+        guard
+            let peripheral = peripheral,
+            let characteristic = redLEDCharacteristic
+        else {
+            print("Peripheral or characteristic not ready")
+            return
+        }
+        
+        peripheral.writeValue(Data([value]),
+                              for: characteristic,
+                              type: .withResponse)
+    }
 }
 
 extension BluetoothManager {
