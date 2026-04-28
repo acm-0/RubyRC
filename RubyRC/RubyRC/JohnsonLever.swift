@@ -62,9 +62,11 @@ struct JohnsonLever: View {
                         // Use a wider clamp for testing if needed
                         let angle = min(max(degrees, minAngle), maxAngle)
                         
-                        if angle < 120 {currentAngle = 120}
-                        else if angle < 200 {currentAngle = 165}
-                        else {currentAngle = 210}
+                        if angle > 90 && angle < 270 {
+                            if angle < (AppConfig.johnsonBarReverseAngle+AppConfig.johnsonBarNeutralAngle)/2 {currentAngle = AppConfig.johnsonBarReverseAngle}
+                            else if angle < (AppConfig.johnsonBarNeutralAngle+AppConfig.johnsonBarForwardAngle)/2 {currentAngle = AppConfig.johnsonBarNeutralAngle}
+                            else {currentAngle = AppConfig.johnsonBarForwardAngle}
+                        }
                     }
             )
         }

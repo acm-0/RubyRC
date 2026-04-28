@@ -9,8 +9,8 @@ import SwiftUI
 
 struct ThrottleLever: View {
     @Binding var currentAngle: Double
-    let minAngle: Double
-    let maxAngle: Double
+    let minAngle: Double = AppConfig.throttleMinAngle
+    let maxAngle: Double = AppConfig.throttleMaxAngle
     
     // Pivot at 90% width, 50% height
     let pivotPoint = UnitPoint(x: 0.5, y: 0.5)
@@ -55,7 +55,7 @@ struct ThrottleLever: View {
                         let vX = value.location.x - pivotInScreen.x
                         let vY = value.location.y - pivotInScreen.y
                         let radians = atan2(vY, vX)
-                        var degrees = radians * 180 / .pi
+                        let degrees = radians * 180 / .pi
                         
 //                        if degrees < 0 { degrees += 360 }
                         
@@ -80,7 +80,7 @@ struct ThrottleLeverPreview: View {
             
             // Placing the lever inside a defined frame
             // is the only way to ensure it appears in Preview.
-            ThrottleLever(currentAngle: $angle, minAngle: -90, maxAngle: 90)
+            ThrottleLever(currentAngle: $angle)
                 .frame(width: 300, height: 300)
 //                .border(Color.blue) // Visualizes the component bounds
             

@@ -23,15 +23,13 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
     private var throttleCharacteristic: CBCharacteristic?
     private var speedometerCharacteristic: CBCharacteristic?
 
+    private let targetUUID = AppConfig.targetUUID
+    private let targetServiceUUID = AppConfig.targetServiceUUID
+    private let redLEDUUID = AppConfig.redLEDUUID
+    private let johnsonBarUUID = AppConfig.johnsonBarUUID
+    private let throttleUUID = AppConfig.throttleUUID
+    private let speedometerUUID = AppConfig.speedometerUUID
 
-    // 🔧 Replace with your peripheral UUID
-    private let targetUUID = UUID(uuidString: "19b10000-e8f2-537e-4f6c-d104768a1214")!
-    private let targetServiceUUID = CBUUID(string: "19b10000-e8f2-537e-4f6c-d104768a1214")
-    private let redLEDUUID = CBUUID(string: "19b10001-e8f2-537e-4f6c-d104768a1214")
-    private let johnsonBarUUID = CBUUID(string: "19b10002-e8f2-537e-4f6c-d104768a1214")
-    private let throttleUUID = CBUUID(string: "19b10003-e8f2-537e-4f6c-d104768a1214")
-    private let speedometerUUID = CBUUID(string: "19b10004-e8f2-537e-4f6c-d104768a1214")
-    
     override init() {
         super.init()
         centralManager = CBCentralManager(delegate: self, queue: nil)
@@ -94,16 +92,16 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
                               type: .withoutResponse)
     }
     
-    func clkReset () {
+    func JohnsonBarWrite (command: UInt8) {
         guard
             let peripheral = peripheral,
-            let characteristic = throttleCharacteristic
+            let characteristic = johnsonBarCharacteristic
         else {
             print("Peripheral or characteristic not ready")
             return
         }
         
-        peripheral.writeValue(Data([0x00]),
+        peripheral.writeValue(Data([command]),
                               for: characteristic,
                               type: .withResponse)
     }
