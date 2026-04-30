@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var bluetoothManager = BluetoothManager()
     @State private var gotoSettings = false
         
         var body: some View {
@@ -24,6 +25,7 @@ struct ContentView: View {
                     .opacity(gotoSettings ? 1 : 0)
                     .disabled(!gotoSettings)
             }
+            .environmentObject(bluetoothManager)
             .animation(.easeInOut(duration: 0.4), value: gotoSettings)
         }
 }  // Struct

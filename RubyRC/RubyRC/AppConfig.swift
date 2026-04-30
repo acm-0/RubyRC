@@ -31,4 +31,5 @@ struct AppConfig {
     static let johnsonBarUUID = CBUUID(string: "19b10002-e8f2-537e-4f6c-d104768a1214")
     static let throttleUUID = CBUUID(string: "19b10003-e8f2-537e-4f6c-d104768a1214")
     static let speedometerUUID = CBUUID(string: "19b10004-e8f2-537e-4f6c-d104768a1214")
+    static let setServoUUID = CBUUID(string: "19b10005-e8f2-537e-4f6c-d104768a1214")
 }

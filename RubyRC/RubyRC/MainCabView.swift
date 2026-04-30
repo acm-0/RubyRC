@@ -21,7 +21,7 @@ struct MainCabView: View {
     @State var showHelp = false
     @State var emergencyStop = false
 //    @State var gotoSettings = false
-    @StateObject private var bluetoothManager = BluetoothManager()
+    @EnvironmentObject var bluetoothManager: BluetoothManager
     @State var throttlePosition: Double = -45
     @State var johnsonPosition: Double = 165
     @State var redLedOn: Bool = false
@@ -85,7 +85,7 @@ struct MainCabView: View {
                 .buttonStyle(.plain)
 /* Settings Switch */
                 GearView(isOn: $gotoSettings)
-                    .position(x: gw * 0.93, y: gh * 0.0)
+                    .position(x: gw * 0.93, y: gh * 0.04)
  //               Button {
 //                    gotoSettings.toggle()
 //                } label: {
@@ -94,7 +94,7 @@ struct MainCabView: View {
 //                        .scaledToFit()
 //                        .scaleEffect(0.4)
 //                        .position(x: gw * 0.93, y: gh * 0.0)
-////                        .shadow(color: .blue, radius: 0.1)
+//                        .shadow(color: .blue, radius: 0.1)
 //                }
 /* Emergency Stop Switch */
                 Button {
@@ -161,6 +161,7 @@ struct MainCabPreviewWrapper: View {
 
     var body: some View {
         MainCabView(gotoSettings: $isOn)
+            .environmentObject(BluetoothManager())
         //            .frame(width: 300, height: 300)
         //            .background(Color.gray.opacity(0.2)) // helps see layout
     }

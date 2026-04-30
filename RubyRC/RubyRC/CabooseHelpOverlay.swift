@@ -1,4 +1,12 @@
 //
+//  CabooseHelpOverlay 2.swift
+//  RubyRC
+//
+//  Created by Adam Malamy on 4/28/26.
+//
+
+
+//
 //  HelpOverlay.swift
 //  RubyRC
 //
@@ -7,7 +15,7 @@
 
 import SwiftUI
 
-struct HelpOverlay: View {
+struct CabooseHelpOverlay: View {
     var body: some View {
         GeometryReader { geometry in
             let gw = geometry.size.width
@@ -113,5 +121,5 @@ struct HelpOverlay: View {
 }
 
 #Preview {
-    HelpOverlay()
+    CabooseHelpOverlay()
 }

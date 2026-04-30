@@ -19,7 +19,6 @@ struct GearView: View {
                 .scaledToFit()
                 .scaleEffect(0.4)
                 .position(x: gw * 0.5, y: gh * 0.5)
-
             Button {
                 // Simply flip the boolean state
                 isOn.toggle()

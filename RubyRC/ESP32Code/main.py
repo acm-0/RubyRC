@@ -7,6 +7,7 @@ import aioble
 import bluetooth
 import struct
 import time
+import os
 from machine import Pin, PWM
 from random import randint
 
@@ -23,9 +24,24 @@ D8 = 8
 D9 = 9
 D10 = 10
 
+#Servo positions default and current values - overwritten by config.txt if it exists
+# Johnson
 FORWARD = 123
+FORWARDDEFAULT = 123
 NEUTRAL = 95
+NEUTRALDEFAULT = 95
 REVERSE = 60
+REVERSEDEFAULT = 60
+# Throttle
+THROTTLEOFF = 0
+THROTTLEOFFDEFAULT = 9
+THROTTLEMAX = 100
+THROTTLEMAXDEFAULT=100
+
+#Bluetooth codes
+FORWARDCOMMAND = 10
+NEUTRALCOMMAND = 20
+REVERSECOMMAND = 30
 
 # Init LED
 led = Pin(D1, Pin.OUT)
@@ -85,6 +101,7 @@ _BLE_LED_ENABLE_UUID = bluetooth.UUID('19b10001-e8f2-537e-4f6c-d104768a1214')
 _BLE_JOHNSON_UUID = bluetooth.UUID('19b10002-e8f2-537e-4f6c-d104768a1214')
 _BLE_THROTTLE_UUID = bluetooth.UUID('19b10003-e8f2-537e-4f6c-d104768a1214')
 _BLE_READSPEED_UUID = bluetooth.UUID('19b10004-e8f2-537e-4f6c-d104768a1214')
+_BLE_SETSERVODEFAULTS_UUID = bluetooth.UUID('19b10005-e8f2-537e-4f6c-d104768a1214')
 
 # How frequently to send advertising beacons.
 _ADV_INTERVAL_MS = 250_000
@@ -95,6 +112,7 @@ led_enable_characteristic = aioble.Characteristic(ble_service, _BLE_LED_ENABLE_U
 johnson_characteristic = aioble.Characteristic(ble_service, _BLE_JOHNSON_UUID, read=True, write=True, notify=False, capture=True)
 throttle_characteristic = aioble.Characteristic(ble_service, _BLE_THROTTLE_UUID, read=True, write=True, notify=False, capture=True)
 readspeed_characteristic = aioble.Characteristic(ble_service, _BLE_READSPEED_UUID, read=True, write=False, notify=True, capture=False)
+setservos_characteristic = aioble.Characteristic(ble_service, _BLE_SETSERVODEFAULTS_UUID, read=True, write=True, notify=False, capture=True)
 
 # Register service(s)
 aioble.register_services(ble_service)
@@ -148,7 +166,7 @@ def decode_unknown(data):
                 return text.strip()  # just return as text
         except UnicodeDecodeError:
             # As fallback, try hex or repr
-            return data.hex()
+			return data.hex()
 
     # --- If it's already a string ---
     if isinstance(data, str):
@@ -189,12 +207,45 @@ async def readspeed_task():
     global axle_delta, previous_interrupt_time
     while True:
         if time.ticks_ms() - previous_interrupt_time > 500 :
-            value = 500
+            value = 5000
         else :
             value = axle_delta
         readspeed_characteristic.write(_encode_data(value), send_update=True)
         await asyncio.sleep_ms(50)
+
+async def setservodefaults_task():
+    global FORWARD, FORWARDDEFAULT, NEUTRAL, NEUTRALDEFAULT, REVERSE, REVERSEDEFAULT, THROTTLEOFF, THROTTLEOFFDEFAULT, THROTTLEMAX, THROTTLEMAXDEFAULT
+    byte_data = struct.pack('5B', FORWARD, NEUTRAL, REVERSE, THROTTLEOFF, THROTTLEMAX)
+    setservos_characteristic.write(byte_data)
+    while True:
+        try:
+            connection, data = await throttle_characteristic.written()
+            FORWARD, NEUTRAL, REVERSE, THROTTLEOFF, THROTTLEMAX = struct.unpack('<5B', data)
+        except asyncio.CancelledError:
+            # Catch the CancelledError
+            print("Peripheral task cancelled")
+        except Exception as e:
+            print("Error in peripheral_task:", e)
+        finally:
+            # Ensure the loop continues to the next iteration
+            await asyncio.sleep_ms(100)        
         
+        
+async def sensor_task():
+    while True:
+        # Simulate reading a sensor
+        temp = random.randint(20, 30)
+        print(f"Updating sensor value to: {temp}°C")
+        
+        # Write to the characteristic. 
+        # When a phone reads this characteristic, it gets this value.
+        temp_char.write(struct.pack("<h", temp * 100))
+        
+        await asyncio.sleep(5)        
+        
+        
+        
+
 async def wait_for_throttle_write():
     global throttle_position
     while True:
@@ -226,9 +277,9 @@ async def wait_for_johnson_write():
             print(data)
             print(type)
             data = decode_unknown(data)
-            if data == "f": johnson_bar_position = FORWARD
-            elif data == "r": johnson_bar_position = REVERSE
-            elif data == "n": johnson_bar_position = NEUTRAL
+            if data == FORWARDCOMMAND: johnson_bar_position = FORWARD
+            elif data == REVERSECOMMAND: johnson_bar_position = REVERSE
+            elif data == NEUTRALCOMMAND: johnson_bar_position = NEUTRAL
             print('Connection: ', connection)
             print('Data: ', data)
             set_servo_angle(johnson_bar_servo,johnson_bar_position)
@@ -279,6 +330,27 @@ async def main():
     t4 = asyncio.create_task(wait_for_johnson_write())
     t5 = asyncio.create_task(wait_for_led_enable_write())
     t6 = asyncio.create_task(readspeed_task())
+    t7 = asyncio.create_task(setservodefaults_task())
     await asyncio.gather(t2)
     
+import os
+if "config.txt" in os.listdir():
+    # Safe to read
+    with open("config.txt", "r") as f:
+        content = f.read()
+        clean_line = content.strip()
+        parts = clean_line.split(',')
+        FORWARD = int(parts[0])
+        NEUTRAL = int(parts[1])  # Convert back to int for use
+        REVERSE = int(parts[2])
+        THROTTLEOFF = int(parts[3])
+        THROTTLEMAX = int(parts[4])
+
+
+        print(f"FORWARD: {FORWARD} | NEUTRAL: {NEUTRAL} | REVERSE {REVERSE} | THROTTLEOFF: {THROTTLEOFF} | THROTTLEMAX: {THROTTLEMAX}")
+    
+else: # Save the harcoded default values
+    with open("config.txt", "w") as f:
+        f.write(f"{FORWARDDEFAULT},{NEUTRALDEFAULT},{REVERSEDEFAULT},{THROTTLEOFFDEFAULT},{THROTTLEMAXDEFAULT}\n")
+
 asyncio.run(main())

@@ -14,6 +14,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
 {
     @Published var isConnected = false
     @Published var rawSpeed: UInt32 = 0
+    @Published var servoBytes: [UInt8] = [0,0,0,0,0]
 
     private var centralManager: CBCentralManager!
     private var targetPeripheral: CBPeripheral?
@@ -22,6 +23,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
     private var johnsonBarCharacteristic: CBCharacteristic?
     private var throttleCharacteristic: CBCharacteristic?
     private var speedometerCharacteristic: CBCharacteristic?
+    private var setServoCharacteristic: CBCharacteristic?
 
     private let targetUUID = AppConfig.targetUUID
     private let targetServiceUUID = AppConfig.targetServiceUUID
@@ -29,6 +31,7 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
     private let johnsonBarUUID = AppConfig.johnsonBarUUID
     private let throttleUUID = AppConfig.throttleUUID
     private let speedometerUUID = AppConfig.speedometerUUID
+    private let setServoUUID = AppConfig.setServoUUID
 
     override init() {
         super.init()
@@ -72,11 +75,11 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
             print("No Bluetooth connection to disconnect")
             return
         }
-        
+
         centralManager.cancelPeripheralConnection(peripheral!)
     }
-    
-    func clkAdjust(direction : Bool) {
+
+    func clkAdjust(direction: Bool) {
         guard
             let peripheral = peripheral,
             let fwdCharacteristic = johnsonBarCharacteristic,
@@ -87,12 +90,14 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
         }
 
         let characteristic = direction ? fwdCharacteristic : bwdCharacteristic
-        peripheral.writeValue(Data([0x00]),
-                              for: characteristic,
-                              type: .withoutResponse)
+        peripheral.writeValue(
+            Data([0x00]),
+            for: characteristic,
+            type: .withoutResponse
+        )
     }
-    
-    func JohnsonBarWrite (command: UInt8) {
+
+    func JohnsonBarWrite(command: UInt8) {
         guard
             let peripheral = peripheral,
             let characteristic = johnsonBarCharacteristic
@@ -100,13 +105,15 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
             print("Peripheral or characteristic not ready")
             return
         }
-        
-        peripheral.writeValue(Data([command]),
-                              for: characteristic,
-                              type: .withResponse)
+
+        peripheral.writeValue(
+            Data([command]),
+            for: characteristic,
+            type: .withResponse
+        )
     }
-    
-    func RedLEDEnable (value: UInt8) {
+
+    func RedLEDEnable(value: UInt8) {
         guard
             let peripheral = peripheral,
             let characteristic = redLEDCharacteristic
@@ -114,10 +121,24 @@ class BluetoothManager: NSObject, ObservableObject, CBCentralManagerDelegate,
             print("Peripheral or characteristic not ready")
             return
         }
-        
-        peripheral.writeValue(Data([value]),
-                              for: characteristic,
-                              type: .withResponse)
+
+        peripheral.writeValue(
+            Data([value]),
+            for: characteristic,
+            type: .withResponse
+        )
+    }
+
+    func GetServoDefaults() {
+        guard
+            let peripheral = peripheral,
+            let characteristic = setServoCharacteristic
+        else {
+            print("Peripheral or characteristic not ready")
+            return
+        }
+        print("launchin read")
+        peripheral.readValue(for: characteristic)
     }
 }
 
@@ -126,7 +147,7 @@ extension BluetoothManager {
         switch central.state {
         case .poweredOn:
             print("Bluetooth ready")
-            scan() // 👈 start scan here
+            scan()  // 👈 start scan here
 
         case .poweredOff:
             print("Bluetooth is off")
@@ -161,7 +182,6 @@ extension BluetoothManager {
         didConnect peripheral: CBPeripheral
     ) {
         DispatchQueue.main.async {
-            self.isConnected = true
         }
         print("✅ Connected to peripheral")
         peripheral.delegate = self  // Set the delegate
@@ -194,25 +214,35 @@ extension BluetoothManager {
 
         for characteristic in characteristics {
             print("Characteristic found: \(characteristic.uuid)")
-            if characteristic.uuid == redLEDUUID {print("A"); redLEDCharacteristic = characteristic}
-            else if characteristic.uuid == johnsonBarUUID {johnsonBarCharacteristic = characteristic}
-            else if characteristic.uuid == throttleUUID {throttleCharacteristic = characteristic}
-            else if characteristic.uuid == speedometerUUID {
+            if characteristic.uuid == redLEDUUID {
+                print("A")
+                redLEDCharacteristic = characteristic
+            } else if characteristic.uuid == johnsonBarUUID {
+                johnsonBarCharacteristic = characteristic
+            } else if characteristic.uuid == throttleUUID {
+                throttleCharacteristic = characteristic
+            } else if characteristic.uuid == setServoUUID {
+                setServoCharacteristic = characteristic
+            } else if characteristic.uuid == speedometerUUID {
                 speedometerCharacteristic = characteristic
                 if speedometerCharacteristic!.properties.contains(.notify) {
                     print("Found notify characteristic")
-                    
+
                     // Enable notifications
                     peripheral.setNotifyValue(true, for: characteristic)
                 }
+            } else {
+                print("Found no match for \(characteristic.uuid)")
             }
-            else {print("Found no match for \(characteristic.uuid)")}
         }
+        self.isConnected = true
     }
 
-    func peripheral(_ peripheral: CBPeripheral,
-                    didUpdateNotificationStateFor characteristic: CBCharacteristic,
-                    error: Error?) {
+    func peripheral(
+        _ peripheral: CBPeripheral,
+        didUpdateNotificationStateFor characteristic: CBCharacteristic,
+        error: Error?
+    ) {
 
         if let error = error {
             print("Notify error: \(error.localizedDescription)")
@@ -222,9 +252,11 @@ extension BluetoothManager {
         print("Notification state updated: \(characteristic.isNotifying)")
     }
 
-    func peripheral(_ peripheral: CBPeripheral,
-                    didUpdateValueFor characteristic: CBCharacteristic,
-                    error: Error?) {
+    func peripheral(
+        _ peripheral: CBPeripheral,
+        didUpdateValueFor characteristic: CBCharacteristic,
+        error: Error?
+    ) {
 
         if let error = error {
             print("Update error: \(error.localizedDescription)")
@@ -232,21 +264,29 @@ extension BluetoothManager {
         }
 
         guard let data = characteristic.value else { return }
-//        print("Data count:", data.count)
-//        print("Expected:", MemoryLayout<Int32>.size)
-        if data.count == MemoryLayout<Int32>.size {
-            let intValue = data.withUnsafeBytes { buffer in
-                buffer.load(as: UInt32.self)
-            }
-            rawSpeed = intValue
-        }
 
-        
-//        print("batteryLevel = \(batteryLevel)")
-        // Convert to something meaningful
-//        handleIncomingData(data)
+        switch characteristic.uuid {
+
+        case speedometerUUID:
+
+            if data.count == MemoryLayout<Int32>.size {
+                let intValue = data.withUnsafeBytes { buffer in
+                    buffer.load(as: UInt32.self)
+                }
+                rawSpeed = intValue
+            }
+            
+        case setServoUUID:
+            servoBytes = ([UInt8](data))
+            print(servoBytes)
+
+        default:
+            print(
+                "Finished reading unknown characteristic: \(characteristic.uuid)"
+            )
+        }
     }
-    
+
     func centralManager(
         _ central: CBCentralManager,
         didFailToConnect peripheral: CBPeripheral,
