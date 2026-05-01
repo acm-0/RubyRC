@@ -150,6 +150,7 @@ struct CabooseView: View {
                 GetCurrentServoDefaults()
             }
         }
+        .ignoresSafeArea(.keyboard)
     }
 
     func GetCurrentServoDefaults() {
