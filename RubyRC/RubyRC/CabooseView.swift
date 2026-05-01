@@ -7,6 +7,27 @@
 
 import SwiftUI
 
+struct GridInputRow: View {
+    let value: UInt8
+    @Binding var inputText: String
+
+    var body: some View {
+        GridRow {
+            Text(String(value))
+                .frame(width: 45, height: 35)
+                .font(.system(size: 18)).bold()
+                .gridColumnAlignment(.trailing)
+
+            TextField(String(value), text: $inputText)
+                .padding(2)
+                .frame(width: 42, height: 35)
+                .border(.black)
+                .font(.system(size: 18)).bold()
+                .keyboardType(.numberPad)
+        }
+    }
+}
+
 struct CabooseView: View {
     @Binding var isOn: Bool
     @EnvironmentObject var bluetoothManager: BluetoothManager
@@ -14,6 +35,8 @@ struct CabooseView: View {
     @State private var forwardInput = ""
     @State private var neutralInput = ""
     @State private var reverseInput = ""
+    @State private var throttleOffInput = ""
+    @State private var throttleMaxInput = ""
 
     @State private var forwardVal: UInt8 = 0
     @State private var neutralVal: UInt8 = 0
@@ -25,6 +48,7 @@ struct CabooseView: View {
         GeometryReader { geometry in
             let gw = geometry.size.width
             let gh = geometry.size.height
+
             ZStack {
                 /* Background */
                 Image("caboose")
@@ -56,59 +80,41 @@ struct CabooseView: View {
                     .frame(width: 79, height: 138)
                     .opacity(0.7)
                     .position(x: gw * 0.45, y: gh * 0.30)
+                Text("Servo Settings")
+                    .font(Font.system(size: 10))
+                    .bold()
+                    .position(x: gw * 0.45, y: gh * 0.222)
+                Text("Current   New")
+                    .font(Font.system(size: 10))
+                    .bold()
+                    .position(x: gw * 0.45, y: gh * 0.38)
                 VStack(alignment: .leading, spacing: 15) {
-                    Grid(
-                        alignment: .leading,
-                        horizontalSpacing: 0,
-                        verticalSpacing: 1
+                    Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: 1
                     ) {
-                        // --- Forward Row ---
-                        GridRow {
-                            Text(String(forwardVal))
-                                .font(Font.system(size: 25))
-                                .padding(.trailing, 10)
-                                .gridColumnAlignment(.trailing)
-                            TextField("0-180", text: $forwardInput)
-                                .padding(8)
-                                .frame(width: 40, height: 35)
-                                .border(.black)
-                                .font(Font.system(size: 25))
-                                .keyboardType(.numberPad)
-                        }
-                        // --- Neutral Row ---
-                        GridRow {
-                            Text(String(neutralVal))
-                                .font(Font.system(size: 25))
-                                .padding(.trailing, 10)
-                                .gridColumnAlignment(.trailing)
-                            TextField("0-180", text: $neutralInput)
-                                .padding(8)
-                                .frame(width: 40, height: 35)
-                                .border(.black)
-                                .font(Font.system(size: 25))
-                                .keyboardType(.numberPad)
-                        }
-                        //                        // --- Reverse Row ---
-                        GridRow {
-                            Text(String(reverseVal))
-                                .font(Font.system(size: 25))
-                                .padding(.trailing, 10)
-                                .gridColumnAlignment(.trailing)
-                            TextField("0-180", text: $reverseInput)
-                                .padding(8)
-                                .frame(width: 40, height: 35)
-                                .border(.black)
-                                .font(Font.system(size: 25))
-                                .keyboardType(.numberPad)
-                        }
+                        GridInputRow(value: forwardVal, inputText: $forwardInput)
+                        GridInputRow(value: neutralVal, inputText: $neutralInput)
+                        GridInputRow(value: reverseVal, inputText: $reverseInput)
                     }
-                    .position(x: gw * 0.44, y: gh * 0.3)
                 }
+                .position(x: gw * 0.44, y: gh * 0.3)
                 Image("electricalbox2")
                     .resizable()
                     .scaledToFit()
                     .scaleEffect(0.35)
                     .position(x: gw * 0.84, y: gh * 0.52)
+                RoundedRectangle(cornerRadius: 7)
+                    .fill(Color.white)
+                    .frame(width: 79, height: 138)
+                    .opacity(0.7)
+                    .position(x: gw * 0.75, y: gh * 0.515)
+                Text("Servo Settings")
+                    .font(Font.system(size: 10))
+                    .bold()
+                    .position(x: gw * 0.75, y: gh * 0.437)
+                Text("Current   New")
+                    .font(Font.system(size: 10))
+                    .bold()
+                    .position(x: gw * 0.75, y: gh * 0.595)
                 Button {
                     // Simply flip the boolean state
                     isOn.toggle()
@@ -117,7 +123,7 @@ struct CabooseView: View {
                         .resizable()
                         .scaledToFit()
                         .scaleEffect(0.1)
-                        .position(x: gw * 0.5, y: gh * 0.5)
+                        .position(x: gw * 0.4, y: gh * 0.6)
                         .shadow(color: .red, radius: 10)
                 }
                 .buttonStyle(.plain)
@@ -157,7 +163,12 @@ struct CabooseView: View {
 
 extension CabooseView {
     func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil,
+            from: nil,
+            for: nil
+        )
     }
 }
 
